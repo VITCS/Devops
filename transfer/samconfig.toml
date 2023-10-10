@@ -1,0 +1,34 @@
+version = 0.1
+
+[dev]
+[dev.deploy]
+[dev.deploy.parameters]
+stack_name = "spirits-dev-transfer-server"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-dev-transfer-server"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_AUTO_EXPAND  CAPABILITY_NAMED_IAM CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"shared\"Environment=\"dev\" LogLevel=\"INFO\" RetentionInDays=\"30\" SecretPrefix=\"/spirits/dev/transfer/users/\" NodeLayerArn=\"/spirits/dev/shared/nodelayer/arn\""
+
+[sit]
+[sit.deploy]
+[sit.deploy.parameters]
+stack_name = "spirits-sit-transfer-server"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-sit-transfer-server"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"shared\" Environment=\"sit\" LogLevel=\"INFO\" RetentionInDays=\"30\" SecretPrefix=\"/spirits/sit/transfer/users/\" NodeLayerArn=\"/spirits/sit/shared/nodelayer/arn\""
+
+[prd]
+[prd.deploy]
+[prd.deploy.parameters]
+stack_name = "spirits-prd-transfer-server"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-transfer-server"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"shared\" Environment=\"prd\" LogLevel=\"INFO\" RetentionInDays=\"30\" SecretPrefix=\"/spirits/prd/transfer/users/\" NodeLayerArn=\"/spirits/prd/shared/nodelayer/arn\""

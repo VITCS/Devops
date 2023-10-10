@@ -1,0 +1,188 @@
+version = 0.1
+
+[prdMerchantUI]
+[prdMerchantUI.deploy]
+[prdMerchantUI.deploy.parameters]
+stack_name = "spirits-prd-merchant-cloudfront"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-merchant-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"merchant\" Environment=\"prd\"   DomainName=\"merchant-web-ui\" AlternateDomainName=\"merchant-prd\" AcmCertificateArn=\"arn:aws:acm:us-east-1:409907184267:certificate/6e24f641-a493-4917-80a9-be100b8793bd\" "
+
+[devMerchantUI]
+[devMerchantUI.deploy]
+[devMerchantUI.deploy.parameters]
+stack_name = "spirits-dev-merchant-cloudfront"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-dev-merchant-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"merchant\" Environment=\"dev\"   DomainName=\"merchant-web-ui\" AlternateDomainName=\"merchant-dev\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[sitMerchantUI]
+[sitMerchantUI.deploy]
+[sitMerchantUI.deploy.parameters]
+stack_name = "spirits-sit-merchant-cloudfront"
+s3_bucket = "843219620739-spirits-sit-samdeploy"
+s3_prefix = "spirits-sit-merchant-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"merchant\" Environment=\"sit\"   DomainName=\"merchant-web-ui\" AlternateDomainName=\"merchant-sit\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+[prdCustomerUI]
+[prdCustomerUI.deploy]
+[prdCustomerUI.deploy.parameters]
+stack_name = "spirits-prd-customer-cloudfront"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-customer-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"customer\" Environment=\"prd\"   DomainName=\"customer-web-ui\" AlternateDomainName=\"customer-prd\" AcmCertificateArn=\"arn:aws:acm:us-east-1:409907184267:certificate/6e24f641-a493-4917-80a9-be100b8793bd\" "
+
+[devCustomerUI]
+[devCustomerUI.deploy]
+[devCustomerUI.deploy.parameters]
+stack_name = "spirits-dev-customer-cloudfront"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-dev-customer-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"customer\" Environment=\"dev\"   DomainName=\"customer-web-ui\" AlternateDomainName=\"customer-dev\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[sitCustomerUI]
+[sitCustomerUI.deploy]
+[sitCustomerUI.deploy.parameters]
+stack_name = "spirits-sit-customer-cloudfront"
+s3_bucket = "843219620739-spirits-sit-samdeploy"
+s3_prefix = "spirits-sit-customer-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"customer\" Environment=\"sit\"   DomainName=\"customer-web-ui\" AlternateDomainName=\"customer-sit\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[prdProducerUI]
+[prdProducerUI.deploy]
+[prdProducerUI.deploy.parameters]
+stack_name = "spirits-prd-producer-cloudfront"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-producer-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"producer\" Environment=\"prd\"   DomainName=\"producer-web-ui\" AlternateDomainName=\"producer-prd\" AcmCertificateArn=\"arn:aws:acm:us-east-1:409907184267:certificate/6e24f641-a493-4917-80a9-be100b8793bd\" "
+
+
+[devProducerUI]
+[devProducerUI.deploy]
+[devProducerUI.deploy.parameters]
+stack_name = "spirits-dev-producer-cloudfront"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-dev-producer-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"producer\" Environment=\"dev\"   DomainName=\"producer-web-ui\" AlternateDomainName=\"producer-dev\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[sitProducerUI]
+[sitProducerUI.deploy]
+[sitProducerUI.deploy.parameters]
+stack_name = "spirits-sit-producer-cloudfront"
+s3_bucket = "843219620739-spirits-sit-samdeploy"
+s3_prefix = "spirits-sit-producer-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"producer\" Environment=\"sit\"   DomainName=\"producer-web-ui\" AlternateDomainName=\"producer-sit\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[prdImages]
+[prdImages.deploy]
+[prdImages.deploy.parameters]
+stack_name = "spirits-prd-images-cloudfront"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-images-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"producer\" Environment=\"prd\"   DomainName=\"images\" AlternateDomainName=\"images-prd\" AcmCertificateArn=\"arn:aws:acm:us-east-1:409907184267:certificate/6e24f641-a493-4917-80a9-be100b8793bd\" "
+
+[devImages]
+[devImages.deploy]
+[devImages.deploy.parameters]
+stack_name = "spirits-dev-images-cloudfront"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-dev-images-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"images\" Environment=\"dev\"   DomainName=\"images\" AlternateDomainName=\"images-dev\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[sitImages]
+[sitImages.deploy]
+[sitImages.deploy.parameters]
+stack_name = "spirits-sit-images-cloudfront"
+s3_bucket = "843219620739-spirits-sit-samdeploy"
+s3_prefix = "spirits-sit-images-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"images\" Environment=\"sit\"   DomainName=\"images\" AlternateDomainName=\"images-sit\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[prdPromotionalUI]
+[prdPromotionalUI.deploy]
+[prdPromotionalUI.deploy.parameters]
+stack_name = "spirits-prd-promotional-cloudfront"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-promotional-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"promotional\" Environment=\"prd\"   DomainName=\"promotional-web-ui\" AlternateDomainName=\"promotional-prd\" AcmCertificateArn=\"arn:aws:acm:us-east-1:409907184267:certificate/6e24f641-a493-4917-80a9-be100b8793bd\" "
+
+
+[prdinternalopsUI]
+[prdinternalopsUI.deploy]
+[prdinternalopsUI.deploy.parameters]
+stack_name = "spirits-prd-internalops-cloudfront"
+s3_bucket = "409907184267-spirits-prd-samdeploy"
+s3_prefix = "spirits-prd-internalops-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"internalops\" Environment=\"prd\"   DomainName=\"internalops-web-ui\" AlternateDomainName=\"internalops-prd\" AcmCertificateArn=\"arn:aws:acm:us-east-1:409907184267:certificate/6e24f641-a493-4917-80a9-be100b8793bd\" "
+
+
+[devinternalopsUI]
+[devinternalopsUI.deploy]
+[devinternalopsUI.deploy.parameters]
+stack_name = "spirits-dev-internalops-cloudfront"
+s3_bucket = "843219620739-spirits-dev-samdeploy"
+s3_prefix = "spirits-dev-internalops-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"internalops\" Environment=\"dev\"   DomainName=\"internalops-web-ui\" AlternateDomainName=\"internalops-dev\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "
+
+
+[sitinternalopsUI]
+[sitinternalopsUI.deploy]
+[sitinternalopsUI.deploy.parameters]
+stack_name = "spirits-sit-internalops-cloudfront"
+s3_bucket = "843219620739-spirits-sit-samdeploy"
+s3_prefix = "spirits-sit-internalops-cloudfront"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Application=\"spirits\" Module=\"internalops\" Environment=\"sit\"   DomainName=\"internalops-web-ui\" AlternateDomainName=\"internalops-sit\" AcmCertificateArn=\"arn:aws:acm:us-east-1:843219620739:certificate/fb7427ec-d411-4685-bbea-253cda90718a\" "

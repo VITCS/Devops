@@ -1,0 +1,212 @@
+################################################
+# Template for Merchant UI - Cloud Front
+################################################
+
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
+
+################################################
+# Parameters
+################################################
+Parameters:
+  Application:
+    Type: String
+  Module:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  DomainName:
+    Type: String
+    Description: "The domain name of website"
+  AlternateDomainName:
+    Type: String
+    Description: "Alternate Domain Name to be used"
+  AcmCertificateArn:
+    Type: String
+    Description: "The certificate arn for the domain name provided"
+  IndexDocument:
+    Type: String
+    Description: "The index document"
+    Default: "index.html"
+  ErrorDocument:
+    Type: String
+    Description: "The error document, ignored in SPA mode"
+    Default: "404.html"
+  RewriteMode:
+    Type: String
+    Description: "The request rewrite behaviour type"
+    Default: "SPA"
+    AllowedValues:
+      - STATIC
+      - SPA
+  CloudFrontPriceClass:
+    Type: String
+    Description: "The price class for CloudFront distribution"
+    Default: "PriceClass_100"
+    AllowedValues:
+      - PriceClass_100
+      - PriceClass_200
+      - PriceClass_All
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prd]
+  IsPrimary: !Equals [!Ref AWS::Region, "us-east-1"]
+  IsStaticMode: !Equals [!Ref RewriteMode, "STATIC"]
+  IsSPAMode: !Equals [!Ref RewriteMode, "SPA"]
+
+Mappings:
+  RegionSuffix:
+    "us-east-1":
+      SFX1: ""
+    "us-west-2":
+      SFX1: "-us-west-2"
+
+################################################
+# Resources
+################################################
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "${AWS::AccountId}-${Application}-${Environment}-${DomainName}-${AWS::Region}"
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: "Environment"
+          Value: !Ref Environment
+        - Key: "Application"
+          Value: !Ref Application
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Sub "${AWS::AccountId}-${Application}-${Environment}-${DomainName}-${AWS::Region}"
+      PolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Action: "s3:GetObject"
+            Resource: !Sub "arn:aws:s3:::${AWS::AccountId}-${Application}-${Environment}-${DomainName}-${AWS::Region}/*"
+            Principal:
+              AWS: !Sub "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${OriginAccessIdentity}"
+
+  OriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Ref AWS::StackName
+
+  RewriteRequestStaticFunction:
+    Condition: IsStaticMode
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${Application}-${Environment}-${DomainName}-req-static-${AWS::Region}"
+      AutoPublish: true
+      FunctionCode: !Sub |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri
+          if (uri.endsWith('/')) {
+              request.uri += '${IndexDocument}';
+          } else if (!uri.includes('.')) {
+              request.uri += '/${IndexDocument}';
+          }
+          return request;
+        }
+      FunctionConfig:
+        Comment: !Sub "rewrite all paths to /${IndexDocument}"
+        Runtime: cloudfront-js-1.0
+
+  RewriteRequestSpaFunction:
+    Condition: IsSPAMode
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${Application}-${Environment}-${DomainName}-req-spa-${AWS::Region}"
+      AutoPublish: true
+      FunctionCode: !Sub |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri
+          if (uri.includes('.') && !uri.endsWith('.html')) {
+              return request;
+          }
+          request.uri = '/${IndexDocument}';
+          return request;
+        }
+      FunctionConfig:
+        Comment: !Sub "rewrite sub-directory path with trailing /${IndexDocument}"
+        Runtime: cloudfront-js-1.0
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "${DomainName}-${Environment}"
+        Enabled: "true"
+        DefaultRootObject: !Ref IndexDocument
+        HttpVersion: http2
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 86400
+            ErrorCode: 403 # object not found in bucket
+            ResponseCode: !If [IsStaticMode, 404, 200]
+            ResponsePagePath:
+              !If [
+                IsStaticMode,
+                !Sub "/${ErrorDocument}",
+                !Sub "/${IndexDocument}",
+              ]
+        Origins:
+          - DomainName: !Sub "${AWS::AccountId}-${Application}-${Environment}-${DomainName}-${AWS::Region}.s3.${AWS::Region}.amazonaws.com"
+            Id: bucketOrigin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${OriginAccessIdentity}
+        DefaultCacheBehavior:
+          Compress: "true"
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          TargetOriginId: bucketOrigin
+          ForwardedValues:
+            QueryString: "false"
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN:
+                !If [
+                  IsStaticMode,
+                  !GetAtt RewriteRequestStaticFunction.FunctionMetadata.FunctionARN,
+                  !GetAtt RewriteRequestSpaFunction.FunctionMetadata.FunctionARN,
+                ]
+        PriceClass: !Ref CloudFrontPriceClass
+        Aliases:
+          - !Sub "${AlternateDomainName}-${AWS::Region}.1800spirits.com"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: "Environment"
+          Value: !Ref Environment
+        - Key: "Application"
+          Value: !Ref Application
+
+# Template Outputs
+
+Outputs:
+  BucketName:
+    Description: "The S3 bucket name where HTML files need to be uploaded"
+    Value: !Ref Bucket
+  CloudFrontDistribution:
+    Description: "The CloudFront distribution in front of the S3 bucket"
+    Value: !Ref Distribution
+  WebsiteUrl:
+    Description: "The website URL"
+    Value: !Sub "https://${DomainName}/"

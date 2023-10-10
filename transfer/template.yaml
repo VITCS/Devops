@@ -1,0 +1,507 @@
+################################################
+# Template for Merchant UI - Cloud Front
+################################################
+
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
+
+################################################
+# Parameters
+################################################
+Parameters:
+  Application:
+    Type: String
+  Module:
+    Type: String
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  SecretPrefix:
+    Type: String
+    Description:  Transfer Secret Prefix
+  NodeLayerArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Node Layer NodeDependenciesLayer ARN
+  LogLevel:
+    Type: String
+    Default: INFO
+  RetentionInDays:
+    Type: Number
+    Default: 7
+    Description: CloudWatch Logs retention period for Lambda functions
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prd]
+  IsPrimary: !Equals [!Ref AWS::Region, "us-east-1"]
+
+Mappings:
+ RegionSuffix:
+    "us-east-1":
+      SFX1: ""
+    "us-west-2":
+      SFX1: "-us-west-2"
+
+################################################
+# Resources
+################################################
+Resources:
+  TransferServer:
+    Type: AWS::Transfer::Server
+    Properties:
+      EndpointType: 'PUBLIC'
+      IdentityProviderDetails:
+        InvocationRole:
+          !GetAtt TransferIdentityProviderRole.Arn
+        Url:
+          !Join
+            - ''
+            - - https://
+              - Ref: CustomIdentityProviderApi
+              - .execute-api.
+              - Ref: AWS::Region
+              - .amazonaws.com/
+              - Ref: ApiStage
+      IdentityProviderType: API_GATEWAY
+      LoggingRole:
+        !GetAtt TransferCWLoggingRole.Arn
+
+  TransferCWLoggingRole:
+    Description: IAM role used by Transfer to log API requests to CloudWatch
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - transfer.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSTransferLoggingAccess
+
+
+  ################################################
+  # Rest API to get the User Details
+  ################################################
+  CustomIdentityProviderApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: Transfer Family Secrets Manager Integration API
+      Description: API used for Transfer Family to access user information in Secrets Manager
+      FailOnWarnings: true
+      EndpointConfiguration:
+        Types:
+        - REGIONAL
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: LambdaSecretsPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource:
+              !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Application}/${Environment}/transfer/users/s-*
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource:
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Application}/${Environment}/transfer/users/s-*
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Application}/${Environment}/transfer/users/s-*/*
+
+  ApiCloudWatchLogsRole:
+    Description: IAM role used by API Gateway to log API requests to CloudWatch
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: ApiGatewayLogsPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:DescribeLogGroups
+            - logs:DescribeLogStreams
+            - logs:PutLogEvents
+            - logs:GetLogEvents
+            - logs:FilterLogEvents
+            Resource: "*"
+  ApiLoggingAccount:
+    Type: AWS::ApiGateway::Account
+    DependsOn:
+    - CustomIdentityProviderApi
+    Properties:
+      CloudWatchRoleArn:
+        !GetAtt ApiCloudWatchLogsRole.Arn
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId:
+        Ref: ApiDeployment202008
+      MethodSettings:
+      - DataTraceEnabled: false
+        HttpMethod: "*"
+        LoggingLevel: INFO
+        ResourcePath: "/*"
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      StageName: prod
+
+  ApiDeployment202008:
+    DependsOn:
+    - GetUserConfigRequest
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+################################################
+# Role
+################################################
+  TransferIdentityProviderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: transfer.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: TransferCanInvokeThisApi
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - execute-api:Invoke
+            Resource:
+              !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${CustomIdentityProviderApi}/prod/GET/*
+      - PolicyName: TransferCanReadThisApi
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - apigateway:GET
+            Resource: "*"
+
+  UserRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Application}-${Environment}-TransferUser-Role 
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: transfer.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: ListUserFolder
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource: !Sub "arn:aws:s3:::${AWS::AccountId}-${Application}-${Environment}-wineposuploads"
+        - PolicyName: HomeDirObjectAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectACL
+                  - s3:GetObjectVersion
+                Resource: !Sub "arn:aws:s3:::${AWS::AccountId}-${Application}-${Environment}-wineposuploads/userUploads/*"
+  
+################################################
+# Get User Config Lambda
+################################################
+  GetUserConfigLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Application}-${Environment}-GetTransferUserConfig-Function
+      CodeUri: src/
+      Description: A function to lookup and return user data from AWS Secrets Manager.
+      Handler: index.lambda_handler
+      Role:
+        !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          SecretPrefix: !Ref SecretPrefix
+ 
+  GetUserConfigLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:invokeFunction
+      FunctionName: !GetAtt GetUserConfigLambda.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${CustomIdentityProviderApi}/*
+################################################
+# API Gateway Resources
+################################################
+  ServersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      ParentId:
+        !GetAtt
+        - CustomIdentityProviderApi
+        - RootResourceId
+      PathPart: servers
+  ServerIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      ParentId:
+        Ref: ServersResource
+      PathPart: "{serverId}"
+  UsersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      ParentId:
+        Ref: ServerIdResource
+      PathPart: users
+  UserNameResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      ParentId:
+        Ref: UsersResource
+      PathPart: "{username}"
+  GetUserConfigResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      ParentId:
+        Ref: UserNameResource
+      PathPart: config
+################################################
+# API Gateway Request
+################################################
+  GetUserConfigRequest:
+    Type: AWS::ApiGateway::Method
+    DependsOn: GetUserConfigResponseModel
+    Properties:
+      AuthorizationType: AWS_IAM
+      HttpMethod: GET
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri:
+          !Join
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - ":lambda:path/2015-03-31/functions/"
+              - !GetAtt
+                - GetUserConfigLambda
+                - Arn
+              - "/invocations"
+        IntegrationResponses:
+        - StatusCode: 200
+        RequestTemplates:
+          application/json: |
+            {
+              "username": "$util.urlDecode($input.params('username'))",
+              "password": "$util.escapeJavaScript($input.params('Password')).replaceAll("\\'","'")",
+              "protocol": "$input.params('protocol')",
+              "serverId": "$input.params('serverId')",
+              "sourceIp": "$input.params('sourceIp')"
+            }
+      RequestParameters:
+        method.request.header.Password: false
+      ResourceId:
+        Ref: GetUserConfigResource
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      MethodResponses:
+      - StatusCode: 200
+        ResponseModels:
+          application/json: UserConfigResponseModel
+  ################################################
+  # API Gateway Model
+  ################################################
+  GetUserConfigResponseModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: CustomIdentityProviderApi
+      ContentType: application/json
+      Description: API response for GetUserConfig
+      Name: UserConfigResponseModel
+      Schema:
+        "$schema": http://json-schema.org/draft-04/schema#
+        title: UserUserConfig
+        type: object
+        properties:
+          HomeDirectory:
+            type: string
+          Role:
+            type: string
+          Policy:
+            type: string
+          PublicKeys:
+            type: array
+            items:
+              type: string
+  ################################################
+  # Create S3 Bucket for uploading WinePoS Data
+  ################################################
+  WinePoSUploadBucket:
+      Type: AWS::S3::Bucket
+      DependsOn: 
+        - WinePoSTriggerFunctionPermission
+      Properties:
+        BucketName: 
+          !Sub
+            - "${Name}${Suffix}"
+            - Name: !Sub "${AWS::AccountId}-${Application}-${Environment}-wineposuploads"
+              Suffix: !FindInMap [RegionSuffix, !Ref "AWS::Region", SFX1]
+        CorsConfiguration:
+          CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - "*"
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt WinePoSTriggerFunction.Arn
+              Filter: 
+                S3Key: 
+                  Rules: 
+                    - Name: "prefix"
+                      Value: "userUploads"
+        PublicAccessBlockConfiguration:
+              BlockPublicAcls : true
+              BlockPublicPolicy : true
+              IgnorePublicAcls : true
+              RestrictPublicBuckets : true
+
+  WinePoSTriggerFunctionPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: WinePoSTriggerFunction
+    Properties:
+      FunctionName: !Sub ${Application}-${Environment}-WinePoSTrigger-Function
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: 
+        !Sub 
+          - "arn:aws:s3:::${Name}${Suffix}"
+          - Name: !Sub "${AWS::AccountId}-${Application}-${Environment}-wineposuploads"
+            Suffix: !FindInMap [RegionSuffix, !Ref "AWS::Region", SFX1]
+
+  
+
+  ########################################################################################################
+  # WinePoS Processor Function for Mapping from WinePoS to Common Format
+  ########################################################################################################
+  WinePoSTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Application}-${Environment}-WinePoSTrigger-Function
+      CodeUri: ./src
+      Layers:
+        - !Ref NodeLayerArn
+      MemorySize: 768
+      Runtime: nodejs16.x
+      Handler: winePoSTrigger.handler
+      Timeout: 300
+      Tags:
+        Application: !Ref Application
+        Environment: !Ref Environment
+        Module: !Ref Module
+      Environment: 
+        Variables:
+          WINE_POS_BASE: !Sub "/${Application}/${Environment}/WinePoS"
+          BUCKET_NAME: 
+            !Sub
+              - "${Name}${Suffix}"
+              - Name: !Sub "${AWS::AccountId}-${Application}-${Environment}-wineposuploads"
+                Suffix: !FindInMap [RegionSuffix, !Ref "AWS::Region", SFX1]
+          UPLOAD_BUCKET_NAME: 
+            !Sub
+              - "${Name}${Suffix}"
+              - Name: !Sub "${AWS::AccountId}-${Application}-${Environment}-merchantupdates"
+                Suffix: !FindInMap [RegionSuffix, !Ref "AWS::Region", SFX1]
+          LOG_LEVEL: !Ref LogLevel
+      Policies:
+      - arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole      
+      - S3CrudPolicy:
+          BucketName: 
+            !Sub
+              - "${Name}${Suffix}"
+              - Name: !Sub "${AWS::AccountId}-${Application}-${Environment}-wineposuploads"
+                Suffix: !FindInMap [RegionSuffix, !Ref "AWS::Region", SFX1]
+      - S3CrudPolicy:
+          BucketName: 
+            !Sub
+              - "${Name}${Suffix}"
+              - Name: !Sub "${AWS::AccountId}-${Application}-${Environment}-merchantupdates"
+                Suffix: !FindInMap [RegionSuffix, !Ref "AWS::Region", SFX1]
+      - Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:GetParametersByPath
+            Resource:
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Application}/${Environment}/WinePoS/*
+  
+  WinePoSTriggerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${WinePoSTriggerFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
